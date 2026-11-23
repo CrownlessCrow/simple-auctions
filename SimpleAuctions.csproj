@@ -7,6 +7,5 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="MySqlConnector" Version="3.0.0" />
-    <Compile Remove="Tests/**/*.cs" />
   </ItemGroup>
 </Project>
