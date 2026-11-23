@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS bids (
     time DATETIME(6) NOT NULL COMMENT 'UTC',
     buyer_id INT NOT NULL,
     auction_id INT NOT NULL,
-    CONSTRAINT positive_amount CHECK (amount > 0),
     FOREIGN KEY (buyer_id) REFERENCES users(id),
     FOREIGN KEY (auction_id) REFERENCES auctions(id),
     INDEX auction_amount (auction_id, amount)

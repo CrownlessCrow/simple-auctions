@@ -17,11 +17,9 @@ public static class BidEndpoints
         {
             int? buyerId = context.Session.GetInt32("UserId");
             if (buyerId is null) return Results.Unauthorized();
-            if (data.Amount <= 0 || data.Amount > 9999999999.99m || decimal.Round(data.Amount, 2) != data.Amount)
-                return Results.BadRequest(new { message = "Amount must be positive, within range and have at most two decimal places." });
             var result = await repository.Create(id, data.Amount, buyerId.Value);
             if (!result.Found) return Results.NotFound();
-            if (result.Error is not null) return Results.Conflict(new { message = result.Error });
+            if (result.Error is not null) return Results.BadRequest(new { message = result.Error });
             return Results.Created($"/api/auctions/{id}/bids", result.Bid);
         });
     }

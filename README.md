@@ -7,7 +7,7 @@ En liten startpunkt för kursprojektet **Test, integration, leverans**. C#/.NET 
 Du behöver .NET 10 SDK och MySQL 8.0.16 eller senare (exempelvis MySQL 8.4).
 
 1. Klona repositoryt och gå till projektmappen.
-2. Kör `Database/script.sql` i din SQL-klient. Skriptet skapar databas och tabeller utan att radera befintlig data.
+2. Kör `Database/script.sql` i din SQL-klient. Skriptet skapar databas och tabeller utan att radera befintlig data. Om du redan har skapat databasen från den tidigare versionen, kör även `Database/remove-positive-check.sql` en gång för att ta bort den gamla beloppsregeln.
 3. Skapa ett separat databaskonto. Kör med ett administratörskonto och välj ett eget lösenord:
 
 ```sql
@@ -39,7 +39,7 @@ API:et kör på `http://localhost:5000` med den medföljande utvecklingsprofilen
 | `Database/script.sql` | Databas och tre tabeller |
 | `Tests/` | Några regeltester och ett körbart API-scenario |
 
-En budläggning går från endpoint till BidRepository, som låser auktionens rad i en transaktion, läser högsta bud och tid, kontrollerar reglerna och sparar budet. Radlåset förhindrar att två bud godkänns utifrån samma gamla pris. Den här startpunkten behöver inget servicelager eller ORM.
+En budläggning går från endpoint till BidRepository, som kontrollerar att auktionen finns, anropar `BidRules.Validate(amount)` och sparar budet. Budreglerna är avsiktligt ofullständiga: studenterna ska undersöka och vidareutveckla dem.
 
 ## Databas och regler
 
@@ -50,10 +50,10 @@ En budläggning går från endpoint till BidRepository, som låser auktionens ra
 | bids | id, amount, time, buyer_id, auction_id |
 
 - Auktioner startar direkt och måste ha namn och en framtida sluttid.
-- Första budet får vara vilket positivt belopp som helst. Följande bud måste vara strikt högre.
-- Belopp har högst två decimaler och får högst vara 9 999 999 999,99.
-- Säljaren får inte bjuda själv. Inloggning krävs för att skapa auktioner och bud.
-- Bud accepteras bara om serverns tid är **före** sluttiden. Alla tider lagras i UTC. Skicka `endTime` som ISO 8601 med `Z` eller explicit offset.
+- Den enda implementerade budregeln är att beloppet får ha högst två decimaler.
+- Inloggning krävs för att skapa auktioner och bud.
+- Alla tider lagras i UTC. Skicka `endTime` som ISO 8601 med `Z` eller explicit offset.
+- Databasens `DECIMAL(12,2)` begränsar vilka belopp som kan lagras.
 - Säljare och köpare tas från sessionen. Budets tid sätts av servern.
 - Auktionens status härleds från tiden. Efter slut vinner högsta bud; utan bud finns ingen vinnare.
 - Det finns inga startpriser, reservationspriser, dolda bud, adminroller, ändrings-/raderingsfunktioner eller alternativa auktionstyper.
@@ -94,7 +94,7 @@ Samma format används för registrering och inloggning.
 
 Använd ett framtida slutdatum när du testar. Skapa först två konton, logga in som säljaren och skapa en auktion. Logga sedan in som den andra användaren och lägg ett bud. Postman sparar sessionscookien mellan anrop; separata klienter/cookie jars behövs för oberoende sessioner.
 
-Svar: `201` för skapad resurs, `200` för hämtning/inloggning, `204` vid utloggning, `400` för ogiltig indata, `401` när inloggning saknas eller misslyckas, `403` för annan användares konto, `404` för saknad resurs och `409` för upptagen e-post eller bud som strider mot auktionens regler. Oväntade fel ger generiska problemsvar och loggas på servern.
+Svar: `201` för skapad resurs, `200` för hämtning/inloggning, `204` vid utloggning, `400` för ogiltig indata, `401` när inloggning saknas eller misslyckas, `403` för annan användares konto, `404` för saknad resurs och `409` för upptagen e-post. Oväntade fel ger generiska problemsvar och loggas på servern.
 
 ## Testa
 
@@ -104,7 +104,7 @@ dotnet test Tests/SimpleAuctions.Tests.csproj
 python3 Tests/smoke.py
 ```
 
-API-scenariot kräver ett startat API med MySQL. Kör det mot en **separat testdatabas** med samma schema och egen anslutningssträng, aldrig mot en databas med riktiga användare. Det skapar unika testkonton och auktioner, lämnar data kvar och testar bland annat inloggning, bud, samtidiga anrop och avslut. Återskapa testdatabasen vid behov.
+API-scenariot kräver ett startat API med MySQL. Kör det mot en **separat testdatabas** med samma schema och egen anslutningssträng, aldrig mot en databas med riktiga användare. Det skapar unika testkonton och auktioner, lämnar data kvar och testar bland annat inloggning, bud, decimalvalidering och dataeffekter. Återskapa testdatabasen vid behov.
 
 GitHub Actions kör bygg, regeltester och API-scenariot med en isolerad MySQL-instans. Detta är en verifieringskontroll för startkoden; den fullständiga projektpipelinen och teststrategin återstår att utveckla.
 
