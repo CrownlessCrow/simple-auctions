@@ -1,6 +1,6 @@
 ﻿namespace SimpleAuctions.Tests;
 
-public class UnitTest1
+public class AuctionRepositoryTest
 {
     [Fact]
     public void Test1()
